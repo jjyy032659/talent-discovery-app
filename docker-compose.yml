@@ -1,0 +1,71 @@
+# ============================================================
+# Docker Compose - Local Development
+#
+# WHY docker-compose for local dev?
+# Simulates the production environment locally:
+# - Same Docker container as production
+# - nginx reverse proxy (same as EC2)
+# - Environment variables from .env.local
+#
+# USAGE:
+#   docker compose up --build    # Build and start
+#   docker compose up -d         # Start in background
+#   docker compose logs -f       # Follow logs
+#   docker compose down          # Stop and remove containers
+#
+# NOTE: For actual development, use 'npm run dev' (faster HMR).
+# Use docker-compose to test the production build locally.
+# ============================================================
+
+version: "3.9"
+
+services:
+  # ---- Next.js App ----
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build for local platform (M1 Mac: linux/arm64, Intel/EC2: linux/amd64)
+      args:
+        - BUILDPLATFORM=${BUILDPLATFORM:-linux/amd64}
+    container_name: talent-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # Direct access for debugging (bypass nginx)
+    env_file:
+      - .env.local    # Load all variables from .env.local
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - app-network
+    healthcheck:
+      # Test if the app is responding
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---- Nginx Reverse Proxy ----
+  nginx:
+    image: nginx:alpine
+    container_name: talent-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS (add SSL cert for local HTTPS testing)
+    volumes:
+      # Mount our nginx config
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # :ro = read-only
+    depends_on:
+      app:
+        condition: service_healthy  # Wait for app to be healthy
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+    # bridge: containers can communicate with each other
+    # but are isolated from host network

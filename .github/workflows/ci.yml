@@ -1,0 +1,114 @@
+# ============================================================
+# CI (Continuous Integration) Workflow
+#
+# WHAT IS CI?
+# Every time code is pushed or a PR is opened, GitHub automatically:
+# 1. Checks out the code
+# 2. Installs dependencies
+# 3. Runs type checking (TypeScript)
+# 4. Runs linting (ESLint)
+# 5. Builds a Docker image (validates it compiles)
+#
+# WHY CI?
+# - Catch bugs before they reach production
+# - Every PR gets a "green checkmark" when all checks pass
+# - Prevents "works on my machine" issues
+# - Resume value: shows you understand automated testing
+#
+# TRIGGERS:
+# - push to any branch: run on your feature branches too
+# - pull_request to main: required before merging
+# ============================================================
+
+name: CI — Type Check, Lint, Build
+
+on:
+  push:
+    branches: ["**"]   # Run on ALL branches
+  pull_request:
+    branches: [main]   # Required check before merging to main
+
+# Cancel in-progress runs when a new commit is pushed
+# Saves GitHub Actions minutes on outdated runs
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # JOB 1: TypeScript + ESLint checks
+  # Fast checks that catch most errors quickly
+  # ============================================================
+  typecheck-and-lint:
+    name: TypeScript & Lint
+    runs-on: ubuntu-latest  # Cheapest and fastest runner
+
+    steps:
+      # 1. Download the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js with caching
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          # Cache node_modules based on package-lock.json hash
+          # If lock file unchanged → skip npm ci → save 30-60 seconds
+          cache: "npm"
+
+      # 3. Install dependencies (uses cache if available)
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. TypeScript type checking
+      # Catches type errors without running the code
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # 5. ESLint — catches code style and potential bugs
+      - name: Lint
+        run: npm run lint
+
+  # ============================================================
+  # JOB 2: Docker build validation
+  # Verifies the Dockerfile works without pushing to ECR
+  # Runs in parallel with typecheck-and-lint!
+  # ============================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Docker Buildx for advanced build features
+      # Buildx supports: multi-platform builds, cache backends, build secrets
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the Docker image but DON'T push it
+      # --load: Load into local Docker (so we can optionally run tests)
+      # --cache-from/to: Use GitHub Actions cache to speed up builds
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false   # Just build, don't push (no ECR credentials needed)
+          tags: talent-app:ci-test
+          # Cache layers to speed up subsequent runs
+          cache-from: type=gha    # Read from GitHub Actions cache
+          cache-to: type=gha,mode=max  # Write to cache (max = cache all layers)
+
+  # ============================================================
+  # JOB 3: Status check (required to merge PR)
+  # Creates a single "all checks passed" status that GitHub requires
+  # ============================================================
+  ci-success:
+    name: CI Passed
+    needs: [typecheck-and-lint, docker-build]
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - run: echo "All CI checks passed!"

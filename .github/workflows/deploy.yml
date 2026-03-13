@@ -1,0 +1,169 @@
+# ============================================================
+# CD (Continuous Deployment) Workflow
+#
+# WHAT IS CD?
+# After CI passes and code is merged to main:
+# 1. Build production Docker image
+# 2. Push to ECR (AWS Container Registry)
+# 3. SSH/SSM into EC2 and pull + run the new image
+#
+# AUTHENTICATION (NO SECRETS NEEDED!):
+# We use GitHub OIDC + AWS IAM roles instead of access keys.
+# GitHub generates a short-lived JWT → AWS validates it → issues temp creds
+# This is THE modern way to authenticate GitHub Actions with AWS.
+#
+# DEPLOYMENT STRATEGY: Rolling restart
+# Stop old container → pull new image → start new container
+# Simple for a single EC2, but ~30s downtime during restart.
+# For zero downtime: use blue-green or ECS with ALB.
+#
+# REQUIRED GITHUB SECRETS (Settings → Secrets → Actions):
+# AWS_ROLE_ARN          - IAM role ARN from Terraform output
+# ECR_REPOSITORY_URL    - ECR repo URL from Terraform output
+# EC2_INSTANCE_ID       - EC2 instance ID from Terraform output
+# AWS_REGION            - "us-east-1"
+# ============================================================
+
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [main]  # Deploy ONLY on push to main
+
+# Only one deploy at a time (prevent race conditions)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Don't cancel in-progress deploys!
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    # Required for OIDC token generation
+    # id-token: write lets GitHub generate a JWT for AWS
+    # contents: read lets us checkout the repo
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # ---- STEP 1: Checkout ----
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---- STEP 2: AWS Authentication via OIDC ----
+      # This is the magic: no AWS credentials stored in GitHub!
+      # GitHub sends a JWT → AWS IAM verifies it → returns temp credentials
+      # Credentials expire after 1 hour (much safer than long-lived keys)
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # Optional: set a descriptive session name for CloudTrail audit logs
+          role-session-name: GitHubActions-Deploy-${{ github.run_number }}
+
+      # ---- STEP 3: Login to ECR ----
+      # Uses the AWS credentials from step 2 to get ECR auth token
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ---- STEP 4: Build, tag, and push Docker image ----
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        id: build-image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true   # Push to ECR this time!
+          # Two tags:
+          # 1. 'latest' — always points to newest image (EC2 uses this)
+          # 2. Git SHA — allows rollback to specific commit
+          tags: |
+            ${{ secrets.ECR_REPOSITORY_URL }}:latest
+            ${{ secrets.ECR_REPOSITORY_URL }}:${{ github.sha }}
+          # Layer caching dramatically speeds up builds (from 3min to 30s)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- STEP 5: Deploy to EC2 via SSM ----
+      # AWS Systems Manager Run Command lets us execute scripts on EC2
+      # WITHOUT opening SSH port 22! Much more secure.
+      #
+      # HOW IT WORKS:
+      # GitHub Actions → AWS API: "run this command on instance i-xxx"
+      # SSM agent on EC2 polls for commands and executes them
+      # Results are returned via SSM API
+      - name: Deploy to EC2 via SSM
+        run: |
+          echo "==> Sending deploy command to EC2 via SSM..."
+
+          # Send the deploy script to EC2
+          # --document-name: built-in AWS document that runs shell commands
+          # --parameters: commands to run
+          # --output-s3-bucket-name: optional, store output in S3
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=["/home/ec2-user/deploy.sh"]' \
+            --comment "Deploy ${{ github.sha }} from GitHub Actions run ${{ github.run_number }}" \
+            --query 'Command.CommandId' \
+            --output text)
+
+          echo "==> Command ID: $COMMAND_ID"
+          echo "==> Waiting for deploy to complete..."
+
+          # Poll until the command finishes (or times out after 5 minutes)
+          for i in $(seq 1 30); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+              --query 'Status' \
+              --output text 2>/dev/null || echo "Pending")
+
+            echo "  Status: $STATUS (attempt $i/30)"
+
+            if [ "$STATUS" = "Success" ]; then
+              echo "Deployment successful!"
+              # Print the deploy output for logs
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+                --query 'StandardOutputContent' \
+                --output text
+              exit 0
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ] || [ "$STATUS" = "TimedOut" ]; then
+              echo "Deployment failed with status: $STATUS"
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+                --query 'StandardErrorContent' \
+                --output text
+              exit 1
+            fi
+
+            sleep 10  # Wait 10 seconds between polls
+          done
+
+          echo "Deployment timed out after 5 minutes"
+          exit 1
+
+      # ---- STEP 6: Deployment summary ----
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "## Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | \`${{ secrets.ECR_REPOSITORY_URL }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Instance | \`${{ secrets.EC2_INSTANCE_ID }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run | [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY

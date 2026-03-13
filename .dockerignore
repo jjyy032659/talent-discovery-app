@@ -1,0 +1,67 @@
+# ============================================================
+# .dockerignore - Files excluded from Docker build context
+#
+# WHY? Docker sends all files in the directory to the daemon.
+# Excluding unnecessary files:
+# 1. Speeds up build (smaller context to send)
+# 2. Prevents accidentally baking secrets into images
+# 3. Reduces layer sizes
+# ============================================================
+
+# Dependencies — rebuilt inside Docker from package-lock.json
+node_modules
+.npm
+
+# Next.js build output — rebuilt inside Docker
+.next
+out
+
+# Environment files — NEVER bake secrets into images!
+# These are injected at runtime via -e flags or docker run --env-file
+.env
+.env.*
+!.env.example  # Allow the example file (no secrets)
+
+# Git metadata — not needed at runtime
+.git
+.gitignore
+.gitattributes
+
+# Development config
+.eslintrc*
+.prettierrc*
+
+# Documentation — doesn't affect runtime
+README.md
+ARCHITECTURE.md
+*.md
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+__tests__
+*.test.*
+*.spec.*
+coverage
+
+# Terraform — never goes into app container
+terraform
+
+# CI/CD config
+.github
+
+# Docker files themselves (already in build context)
+Dockerfile*
+docker-compose*
+
+# Logs
+*.log
+npm-debug.log*
