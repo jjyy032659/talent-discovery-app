@@ -73,7 +73,7 @@ resource "aws_instance" "app" {
   # EBS root volume settings
   root_block_device {
     volume_type           = "gp3"    # gp3 is cheaper than gp2 and faster
-    volume_size           = 20       # 20GB is plenty; Next.js + Docker ≈ 5GB
+    volume_size           = 30       # AL2023 AMI snapshot requires minimum 30GB
     encrypted             = true     # Always encrypt volumes
     delete_on_termination = true
   }

@@ -116,13 +116,13 @@ docker pull ${ecr_registry_url}/${ecr_repo_name}:latest || echo "No image yet, s
 # - USE SSM for this project (free), consider Secrets Manager for production
 echo "==> Fetching secrets from SSM..."
 GEMINI_API_KEY=$(aws ssm get-parameter \
-  --name "/${app_name}/${environment}/gemini-api-key" \
+  --name "${app_name}-${environment}-gemini-api-key" \
   --with-decryption \
   --query Parameter.Value \
   --output text) || GEMINI_API_KEY="placeholder"
 
 NEXTAUTH_SECRET=$(aws ssm get-parameter \
-  --name "/${app_name}/${environment}/nextauth-secret" \
+  --name "${app_name}-${environment}-nextauth-secret" \
   --with-decryption \
   --query Parameter.Value \
   --output text) || NEXTAUTH_SECRET="placeholder"
@@ -168,11 +168,11 @@ docker pull "$IMAGE"
 
 echo "==> [deploy] Getting latest secrets..."
 GEMINI_API_KEY=$(aws ssm get-parameter \
-  --name "/$APP_NAME/$ENV/gemini-api-key" \
+  --name "$APP_NAME-$ENV-gemini-api-key" \
   --with-decryption --query Parameter.Value --output text)
 
 NEXTAUTH_SECRET=$(aws ssm get-parameter \
-  --name "/$APP_NAME/$ENV/nextauth-secret" \
+  --name "$APP_NAME-$ENV-nextauth-secret" \
   --with-decryption --query Parameter.Value --output text)
 
 echo "==> [deploy] Stopping old container..."

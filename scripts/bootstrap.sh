@@ -24,9 +24,9 @@ set -euo pipefail
 
 # ---- CONFIGURATION ----
 # These MUST match the backend config in environments/dev/main.tf!
-BUCKET_NAME="talent-app-terraform-state"   # CHANGE: must be globally unique!
+BUCKET_NAME="talent-app-terraform-state-486804363192"  # account ID ensures global uniqueness
 LOCK_TABLE="talent-app-terraform-locks"
-REGION="us-east-1"
+REGION="ap-southeast-2"
 
 echo "============================================================"
 echo "  Bootstrapping Terraform Backend"

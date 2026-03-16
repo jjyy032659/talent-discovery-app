@@ -207,7 +207,7 @@ resource "aws_security_group" "ec2" {
   # }
 
   egress {
-    description = "All outbound — needed for ECR, SSM, APIs"
+    description = "All outbound traffic for ECR, SSM, APIs"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

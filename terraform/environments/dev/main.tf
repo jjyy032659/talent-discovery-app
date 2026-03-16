@@ -26,9 +26,9 @@ terraform {
   # Locally: works fine alone, but if lost → can't manage resources
   # S3: survives laptop crashes, shared across team, versioned
   backend "s3" {
-    bucket         = "talent-app-terraform-state"  # CHANGE: must be globally unique
+    bucket         = "talent-app-terraform-state-486804363192"
     key            = "dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "ap-southeast-2"
 
     # DynamoDB table for state locking
     # Prevents two people from running apply simultaneously (race condition → corruption)
@@ -97,12 +97,13 @@ module "cognito" {
   # STEP 2: Add your EC2 Elastic IP URL here after first apply
   callback_urls = compact([
     "http://localhost:3000/api/auth/callback/cognito",
-    var.ec2_public_ip != "" ? "http://${var.ec2_public_ip}/api/auth/callback/cognito" : "",
+    # HTTPS required for non-localhost. Add after setting up SSL:
+    # var.ec2_public_ip != "" ? "https://${var.ec2_public_ip}/api/auth/callback/cognito" : "",
   ])
 
   logout_urls = compact([
     "http://localhost:3000",
-    var.ec2_public_ip != "" ? "http://${var.ec2_public_ip}" : "",
+    # var.ec2_public_ip != "" ? "https://${var.ec2_public_ip}" : "",
   ])
 }
 
@@ -112,7 +113,7 @@ module "iam" {
 
   app_name           = var.app_name
   environment        = var.environment
-  ecr_repository_arn = module.ecr.repository_url  # Scope ECR access
+  ecr_repository_arn = "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${var.app_name}-${var.environment}"
   dynamodb_table_arn = module.dynamodb.table_arn   # Scope DynamoDB access
   aws_region         = var.aws_region
   aws_account_id     = data.aws_caller_identity.current.account_id

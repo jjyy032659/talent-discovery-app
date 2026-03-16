@@ -95,7 +95,7 @@ data "aws_iam_policy_document" "ec2_ssm_params" {
     ]
     # Only allow reading parameters under our app's path
     resources = [
-      "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.app_name}/*"
+      "arn:aws:ssm:${var.aws_region}:${var.aws_account_id}:parameter/${var.app_name}-*"
     ]
   }
 }

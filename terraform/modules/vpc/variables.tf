@@ -52,5 +52,5 @@ variable "private_subnet_cidrs" {
 variable "availability_zones" {
   description = "AZs to deploy subnets into (should match subnet count)"
   type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  default     = ["ap-southeast-2a", "ap-southeast-2b"]
 }
