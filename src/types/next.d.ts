@@ -1,5 +1,3 @@
-/// <reference path="../../node_modules/next/navigation-types/compat/navigation.d.ts" />
-
 declare module "next/navigation" {
   export interface Router {
     push(href: string): void;
@@ -10,4 +8,6 @@ declare module "next/navigation" {
     prefetch(href: string): void;
   }
   export function useRouter(): Router;
+  export function usePathname(): string | null;
+  export function useSearchParams(): URLSearchParams;
 }

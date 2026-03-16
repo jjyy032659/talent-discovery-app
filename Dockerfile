@@ -103,7 +103,8 @@ EXPOSE 3000
 
 # Tell Next.js which host and port to listen on
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"  # Listen on all interfaces, not just localhost
+# Listen on all interfaces, not just localhost
+ENV HOSTNAME="0.0.0.0"
 
 # Start the standalone server
 # This is created by next.config.ts output: 'standalone'
