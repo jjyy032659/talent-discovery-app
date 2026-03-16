@@ -121,11 +121,17 @@ GEMINI_API_KEY=$(aws ssm get-parameter \
   --query Parameter.Value \
   --output text) || GEMINI_API_KEY="placeholder"
 
-NEXTAUTH_SECRET=$(aws ssm get-parameter \
+AUTH_SECRET=$(aws ssm get-parameter \
   --name "${app_name}-${environment}-nextauth-secret" \
   --with-decryption \
   --query Parameter.Value \
-  --output text) || NEXTAUTH_SECRET="placeholder"
+  --output text) || AUTH_SECRET="placeholder"
+
+AUTH_COGNITO_SECRET=$(aws ssm get-parameter \
+  --name "${app_name}-${environment}-cognito-client-secret" \
+  --with-decryption \
+  --query Parameter.Value \
+  --output text) || AUTH_COGNITO_SECRET=""
 
 # ----- START APP CONTAINER -----
 if docker image inspect ${ecr_registry_url}/${ecr_repo_name}:latest >/dev/null 2>&1; then
@@ -135,8 +141,9 @@ if docker image inspect ${ecr_registry_url}/${ecr_repo_name}:latest >/dev/null 2
     --restart unless-stopped \
     -p 3000:3000 \
     -e GEMINI_API_KEY="$GEMINI_API_KEY" \
-    -e NEXTAUTH_SECRET="$NEXTAUTH_SECRET" \
+    -e AUTH_SECRET="$AUTH_SECRET" \
     -e AUTH_COGNITO_ID="${cognito_client_id}" \
+    -e AUTH_COGNITO_SECRET="$AUTH_COGNITO_SECRET" \
     -e AUTH_COGNITO_ISSUER="https://cognito-idp.${aws_region}.amazonaws.com/${cognito_user_pool_id}" \
     -e AWS_REGION="${aws_region}" \
     -e DYNAMODB_TABLE_NAME="${dynamodb_table_name}" \
@@ -171,8 +178,12 @@ GEMINI_API_KEY=$(aws ssm get-parameter \
   --name "$APP_NAME-$ENV-gemini-api-key" \
   --with-decryption --query Parameter.Value --output text)
 
-NEXTAUTH_SECRET=$(aws ssm get-parameter \
+AUTH_SECRET=$(aws ssm get-parameter \
   --name "$APP_NAME-$ENV-nextauth-secret" \
+  --with-decryption --query Parameter.Value --output text)
+
+AUTH_COGNITO_SECRET=$(aws ssm get-parameter \
+  --name "$APP_NAME-$ENV-cognito-client-secret" \
   --with-decryption --query Parameter.Value --output text)
 
 echo "==> [deploy] Stopping old container..."
@@ -185,8 +196,9 @@ docker run -d \
   --restart unless-stopped \
   -p 3000:3000 \
   -e GEMINI_API_KEY="$GEMINI_API_KEY" \
-  -e NEXTAUTH_SECRET="$NEXTAUTH_SECRET" \
+  -e AUTH_SECRET="$AUTH_SECRET" \
   -e AUTH_COGNITO_ID="${cognito_client_id}" \
+  -e AUTH_COGNITO_SECRET="$AUTH_COGNITO_SECRET" \
   -e AUTH_COGNITO_ISSUER="https://cognito-idp.${aws_region}.amazonaws.com/${cognito_user_pool_id}" \
   -e AWS_REGION="${aws_region}" \
   -e DYNAMODB_TABLE_NAME="${dynamodb_table_name}" \
