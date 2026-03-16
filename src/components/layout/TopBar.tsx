@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, Menu } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { AuthButton } from "@/components/auth/AuthButton";
 
 const PAGE_TITLES: Record<string, string> = {

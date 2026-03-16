@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useCallback, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { AnimatedSection } from "@/components/shared/AnimatedSection";
 import { ScenarioCard } from "@/components/scenarios/ScenarioCard";
 import { ScenarioChoice } from "@/components/scenarios/ScenarioChoice";
@@ -37,13 +37,7 @@ export default function ScenariosPage() {
   } = useScenarioStore();
   const { updateFromScenario } = useTalentProfileStore();
 
-  useEffect(() => {
-    if (!currentScenario && !sessionComplete) {
-      loadNextScenario();
-    }
-  }, []);
-
-  const loadNextScenario = () => {
+  const loadNextScenario = useCallback(() => {
     setGenerating(true);
     startTransition(async () => {
       const result = await generateScenario(completedScenarios);
@@ -54,7 +48,15 @@ export default function ScenariosPage() {
         setGenerating(false);
       }
     });
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedScenarios, setCurrentScenario, setGenerating, startTransition]);
+
+  useEffect(() => {
+    if (!currentScenario && !sessionComplete) {
+      loadNextScenario();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleChoice = (choiceId: string) => {
     if (!currentScenario) return;

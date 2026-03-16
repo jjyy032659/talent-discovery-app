@@ -5,7 +5,7 @@ import { Trophy, RefreshCw, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { COMPETENCY_LABELS, type Competency } from "@/types/talent-profile.types";
+import { COMPETENCY_LABELS } from "@/types/talent-profile.types";
 import type { ScenarioSessionResult } from "@/types/scenario.types";
 
 interface ScenarioSummaryProps {

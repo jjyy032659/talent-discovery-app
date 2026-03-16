@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles, Brain, ThumbsDown, Map, Radar, ArrowRight, CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { AnimatedSection } from "@/components/shared/AnimatedSection";
 import { useIkigaiStore } from "@/store/ikigai.store";
 import { useScenarioStore } from "@/store/scenario.store";

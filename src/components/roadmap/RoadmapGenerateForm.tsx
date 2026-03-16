@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { motion } from "framer-motion";
 import { Wand2, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,7 @@ export function RoadmapGenerateForm() {
           appendMarkdown(decoder.decode(value, { stream: true }));
         }
         setStreamComplete();
-      } catch (err) {
+      } catch {
         setStreaming(false);
         toast.error("Failed to generate roadmap");
       }

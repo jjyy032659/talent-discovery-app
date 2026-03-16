@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useTransition } from "react";
+import { AnimatePresence } from "framer-motion";
 import { ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SwipeCard } from "./SwipeCard";
@@ -32,18 +32,6 @@ export function SwipeDeck() {
   } = useAntiTalentStore();
   const { updateFromAntiTalent } = useTalentProfileStore();
 
-  useEffect(() => {
-    if (taskDeck.length === 0) {
-      loadDeck();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (deckExhausted && dislikedTasks.length >= 3 && !analysisResult) {
-      handleAnalyze();
-    }
-  }, [deckExhausted]);
-
   const loadDeck = () => {
     startTransition(async () => {
       const result = await generateTaskDeck();
@@ -55,7 +43,7 @@ export function SwipeDeck() {
     });
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = useCallback(() => {
     setAnalyzing(true);
     startTransition(async () => {
       const result = await analyzeAntiTalent(dislikedTasks, likedTasks);
@@ -70,7 +58,21 @@ export function SwipeDeck() {
         toast.error(result.error ?? "Analysis failed");
       }
     });
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dislikedTasks, likedTasks, setAnalysisResult, setAnalyzing, startTransition, updateFromAntiTalent]);
+
+  useEffect(() => {
+    if (taskDeck.length === 0) {
+      loadDeck();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (deckExhausted && dislikedTasks.length >= 3 && !analysisResult) {
+      handleAnalyze();
+    }
+  }, [deckExhausted, dislikedTasks.length, analysisResult, handleAnalyze]);
 
   if (isPending && taskDeck.length === 0) {
     return (

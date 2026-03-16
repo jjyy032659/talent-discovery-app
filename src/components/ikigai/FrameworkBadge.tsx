@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { HOLLAND_LABELS, MBTI_DESCRIPTIONS, type HollandCode } from "@/types/ikigai.types";
 

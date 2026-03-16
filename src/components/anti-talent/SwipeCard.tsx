@@ -2,7 +2,6 @@
 
 import { motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { TaskCard } from "@/types/anti-talent.types";
 
 interface SwipeCardProps {

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { HollandBadge, MBTIBadge } from "./FrameworkBadge";
 import type { IkigaiAnalysisResult } from "@/types/ikigai.types";
 import { BIG_FIVE_LABELS } from "@/types/ikigai.types";

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { AnimatedSection } from "@/components/shared/AnimatedSection";
 import { TalentRadarChart } from "@/components/talent-map/TalentRadarChart";
 import { TalentScoreList } from "@/components/talent-map/TalentScoreList";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useTalentProfileStore } from "@/store/talent-profile.store";
 
 export default function TalentMapPage() {
-  const { dimensions, topTalents, avoidanceAreas, profileComplete } = useTalentProfileStore();
+  const { dimensions, topTalents, avoidanceAreas } = useTalentProfileStore();
   const hasData = dimensions.some((d) => d.score > 0);
 
   if (!hasData) {
