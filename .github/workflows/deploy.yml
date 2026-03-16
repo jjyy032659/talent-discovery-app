@@ -28,7 +28,7 @@ name: Deploy to AWS EC2
 
 on:
   push:
-    branches: [main]  # Deploy ONLY on push to main
+    branches: [main, master]  # Deploy on push to main or master
 
 # Only one deploy at a time (prevent race conditions)
 concurrency:
