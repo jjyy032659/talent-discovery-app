@@ -143,6 +143,7 @@ module "ec2" {
   dynamodb_table_name  = module.dynamodb.table_name
   cognito_client_id    = module.cognito.client_id
   cognito_user_pool_id = module.cognito.user_pool_id
+  ec2_public_ip        = var.ec2_public_ip
 
   depends_on = [module.vpc, module.iam, module.ecr, module.cognito]
 }

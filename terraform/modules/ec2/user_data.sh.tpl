@@ -149,6 +149,8 @@ if docker image inspect ${ecr_registry_url}/${ecr_repo_name}:latest >/dev/null 2
     -e DYNAMODB_TABLE_NAME="${dynamodb_table_name}" \
     -e NODE_ENV="production" \
     -e PORT="3000" \
+    -e AUTH_TRUST_HOST="true" \
+    -e AUTH_URL="http://${ec2_public_ip}" \
     ${ecr_registry_url}/${ecr_repo_name}:latest
 fi
 
@@ -204,6 +206,8 @@ docker run -d \
   -e DYNAMODB_TABLE_NAME="${dynamodb_table_name}" \
   -e NODE_ENV="production" \
   -e PORT="3000" \
+  -e AUTH_TRUST_HOST="true" \
+  -e AUTH_URL="http://${ec2_public_ip}" \
   "$IMAGE"
 
 echo "==> [deploy] Cleaning up old images..."

@@ -88,3 +88,9 @@ variable "aws_region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "ec2_public_ip" {
+  description = "Elastic IP of the EC2 instance (used for AUTH_URL)"
+  type        = string
+  default     = ""
+}

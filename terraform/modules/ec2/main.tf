@@ -64,6 +64,7 @@ resource "aws_instance" "app" {
     cognito_user_pool_id = var.cognito_user_pool_id
     app_name             = var.app_name
     environment          = var.environment
+    ec2_public_ip        = var.ec2_public_ip
   })
 
   # Protect against accidental termination via Terraform.
