@@ -104,7 +104,7 @@ resource "aws_cognito_identity_provider" "google" {
     oidc_issuer                   = "https://accounts.google.com"
     token_url                     = "https://oauth2.googleapis.com/token"
     token_request_method          = "POST"
-    authorize_url                 = "https://accounts.google.com/o/oauth2/v2/auth"
+    authorize_url                 = "https://accounts.google.com/o/oauth2/v2/auth?prompt=select_account"
     attributes_url                = "https://people.googleapis.com/v1/people/me?personFields="
     attributes_url_add_attributes = "true"
   }
