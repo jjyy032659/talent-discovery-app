@@ -79,9 +79,9 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
   return (
     <Button
       size="sm"
-      onClick={() => signIn("cognito")}
+      onClick={() => signIn("cognito", undefined, { prompt: "select_account" })}
       // "cognito" = the provider ID from our NextAuth config
-      // This triggers the OAuth2 Authorization Code flow
+      // prompt=select_account forces Google account picker on every sign-in
       className={className}
     >
       Sign In
