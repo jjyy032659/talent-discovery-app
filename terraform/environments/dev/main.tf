@@ -116,9 +116,10 @@ module "iam" {
   app_name           = var.app_name
   environment        = var.environment
   ecr_repository_arn = "arn:aws:ecr:${var.aws_region}:${data.aws_caller_identity.current.account_id}:repository/${var.app_name}-${var.environment}"
-  dynamodb_table_arn = module.dynamodb.table_arn   # Scope DynamoDB access
+  dynamodb_table_arn = module.dynamodb.table_arn
   aws_region         = var.aws_region
   aws_account_id     = data.aws_caller_identity.current.account_id
+  github_repo        = "jjyy032659/talent-discovery-app"
 }
 
 # ===== MODULE: EC2 =====

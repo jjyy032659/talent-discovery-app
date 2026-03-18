@@ -223,8 +223,7 @@ data "aws_iam_policy_document" "github_actions_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:*:ref:refs/heads/main"]  # Allow any repo on main branch
-      # More restrictive (recommended): "repo:YOUR_USERNAME/talent-discovery-app:ref:refs/heads/main"
+      values   = ["repo:${var.github_repo}:*"]
     }
   }
 }

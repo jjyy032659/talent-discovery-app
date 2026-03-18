@@ -43,3 +43,8 @@ variable "aws_account_id" {
   description = "AWS account ID for OIDC trust policy"
   type        = string
 }
+
+variable "github_repo" {
+  description = "GitHub repo in owner/name format (e.g. jjyy032659/talent-discovery-app)"
+  type        = string
+}
