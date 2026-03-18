@@ -26,6 +26,21 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 
+// Cognito logout endpoint — clears the Cognito session so the next
+// sign-in goes through the full Google flow (enabling account switching).
+// Without this, Cognito remembers the last user and skips Google entirely.
+const COGNITO_LOGOUT_URL =
+  "https://talent-app-dev.auth.ap-southeast-2.amazoncognito.com/logout" +
+  "?client_id=66nas9pa6o8dtph59o9m2dc71n" +
+  "&logout_uri=https://talentdiscovery.xyz";
+
+async function handleSignOut() {
+  // 1. Clear the NextAuth JWT cookie
+  await signOut({ redirect: false });
+  // 2. Clear the Cognito session so next sign-in shows Google account picker
+  window.location.href = COGNITO_LOGOUT_URL;
+}
+
 interface AuthButtonProps {
   /** Optional: show user email next to button when signed in */
   showEmail?: boolean;
@@ -55,19 +70,19 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
             {session.user.email}
           </span>
         )}
-        {/* Avatar circle from user initials */}
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+        {/* Avatar — clicking it also signs out */}
+        <button
+          onClick={handleSignOut}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity"
           style={{ background: "var(--primary)", color: "white" }}
-          title={session.user?.email ?? ""}
+          title={`Signed in as ${session.user?.email ?? ""} — click to sign out`}
         >
           {session.user?.email?.[0]?.toUpperCase() ?? "U"}
-        </div>
+        </button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => signOut({ callbackUrl: "/" })}
-          // callbackUrl: where to redirect after sign-out (our landing page)
+          onClick={handleSignOut}
         >
           Sign Out
         </Button>
