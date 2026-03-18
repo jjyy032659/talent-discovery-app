@@ -70,15 +70,14 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
             {session.user.email}
           </span>
         )}
-        {/* Avatar — clicking it also signs out */}
-        <button
-          onClick={handleSignOut}
-          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity"
+        {/* Avatar — shows signed-in email on hover */}
+        <div
+          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
           style={{ background: "var(--primary)", color: "white" }}
-          title={`Signed in as ${session.user?.email ?? ""} — click to sign out`}
+          title={`Signed in as ${session.user?.email ?? ""}`}
         >
           {session.user?.email?.[0]?.toUpperCase() ?? "U"}
-        </button>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -94,9 +93,9 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
   return (
     <Button
       size="sm"
-      onClick={() => signIn("cognito", undefined, { prompt: "select_account" })}
-      // "cognito" = the provider ID from our NextAuth config
-      // prompt=select_account forces Google account picker on every sign-in
+      onClick={() => signIn("cognito", undefined, { identity_provider: "Google" })}
+      // identity_provider=Google bypasses Cognito hosted UI and goes
+      // straight to Google — no extra "click again" step for the user
       className={className}
     >
       Sign In
