@@ -93,9 +93,8 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
   return (
     <Button
       size="sm"
-      onClick={() => signIn("cognito", undefined, { identity_provider: "Google" })}
-      // identity_provider=Google bypasses Cognito hosted UI and goes
-      // straight to Google — no extra "click again" step for the user
+      onClick={() => signIn("cognito", { redirectTo: "/dashboard" })}
+      // redirectTo: go straight to dashboard after auth completes
       className={className}
     >
       Sign In

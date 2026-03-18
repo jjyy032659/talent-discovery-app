@@ -38,6 +38,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // next-auth fetches /.well-known/openid-configuration from this URL to
       // discover all endpoints automatically (OIDC discovery)
       issuer: process.env.AUTH_COGNITO_ISSUER!,
+      // Skip Cognito hosted UI, go straight to Google every time.
+      // Without this, users see an intermediate Cognito login page.
+      authorization: { params: { identity_provider: "Google" } },
     }),
   ],
 
