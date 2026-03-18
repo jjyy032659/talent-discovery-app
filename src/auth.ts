@@ -79,8 +79,24 @@ const CognitoProvider: OAuthConfig<CognitoUserInfo> = {
     },
   },
 
-  // Token endpoint — exchange auth code for access_token
-  token: `${COGNITO_DOMAIN}/oauth2/token`,
+  // Token endpoint — exchange auth code for access_token.
+  // WHY conform()?
+  // Cognito returns { access_token, id_token, refresh_token } from this endpoint.
+  // Even for type:"oauth" providers, auth.js validates any id_token it finds in
+  // the token response — triggering the same Cognito nonce mismatch error.
+  // We strip id_token BEFORE auth.js processes the response, forcing it to
+  // fall through to the userinfo endpoint for profile data instead.
+  token: {
+    url: `${COGNITO_DOMAIN}/oauth2/token`,
+    async conform(response: Response): Promise<Response> {
+      const body = await response.clone().json() as Record<string, unknown>;
+      delete body.id_token;
+      return new Response(JSON.stringify(body), {
+        status: response.status,
+        headers: response.headers,
+      });
+    },
+  },
 
   // UserInfo endpoint — called with access_token to get profile
   userinfo: `${COGNITO_DOMAIN}/oauth2/userInfo`,
