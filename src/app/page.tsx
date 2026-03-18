@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, Brain, ThumbsDown, Map, Radar, ArrowRight, Star } from "lucide-react";
+import { AuthButton } from "@/components/auth/AuthButton";
 
 const features = [
   {
@@ -55,12 +56,7 @@ export default function HomePage() {
           </div>
           <span className="font-bold text-[var(--foreground)]">TalentDiscover</span>
         </div>
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          Start Discovering <ArrowRight className="w-4 h-4" />
-        </Link>
+        <AuthButton />
       </nav>
 
       {/* Hero */}
