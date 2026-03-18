@@ -86,6 +86,14 @@ resource "aws_instance" "app" {
     ManagedBy   = "terraform"
   }
 
+  # Ignore user_data changes — EC2 is configured once at launch.
+  # Updates are deployed via GitHub Actions (SSM + Docker), not by
+  # recreating the instance. Without this, every user_data change
+  # destroys and recreates the EC2 instance, losing SSL certs and state.
+  lifecycle {
+    ignore_changes = [user_data, ami]
+  }
+
   # Ensure IAM profile is ready before EC2 tries to use it
   depends_on = [var.iam_instance_profile]
 }
