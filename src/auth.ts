@@ -60,64 +60,83 @@ interface CognitoUserInfo {
  * - Uses the access_token to call /oauth2/userInfo for profile data
  * - Only applies PKCE + state checks (no nonce) → no mismatch possible
  */
-const CognitoProvider: OAuthConfig<CognitoUserInfo> = {
-  id: "cognito",
-  name: "Cognito",
-  type: "oauth",
-
-  clientId: process.env.AUTH_COGNITO_ID!,
-  clientSecret: process.env.AUTH_COGNITO_SECRET!,
-
-  // Authorization endpoint — Cognito Hosted UI
-  // identity_provider=Google skips the Cognito login page and goes
-  // straight to Google OAuth. Without this, users see a Cognito page first.
-  authorization: {
-    url: `${COGNITO_DOMAIN}/oauth2/authorize`,
-    params: {
-      scope: "openid email profile",
-      identity_provider: "Google",
-    },
-  },
-
-  // Token endpoint — exchange auth code for access_token.
-  // WHY conform()?
-  // Cognito returns { access_token, id_token, refresh_token } from this endpoint.
-  // Even for type:"oauth" providers, auth.js validates any id_token it finds in
-  // the token response — triggering the same Cognito nonce mismatch error.
-  // We strip id_token BEFORE auth.js processes the response, forcing it to
-  // fall through to the userinfo endpoint for profile data instead.
-  token: {
-    url: `${COGNITO_DOMAIN}/oauth2/token`,
+/**
+ * Shared token endpoint config for all Cognito providers.
+ *
+ * WHY conform()?
+ * Cognito returns { access_token, id_token, refresh_token } from the token
+ * endpoint. Even for type:"oauth" providers, auth.js validates any id_token
+ * it finds in the response — triggering the Cognito nonce mismatch error.
+ * We strip id_token before auth.js processes it, forcing it to use the
+ * userinfo endpoint for profile data instead.
+ */
+function cognitoToken(url: string) {
+  return {
+    url,
     async conform(response: Response): Promise<Response> {
-      const body = await response.clone().json() as Record<string, unknown>;
+      const body = (await response.clone().json()) as Record<string, unknown>;
       delete body.id_token;
       return new Response(JSON.stringify(body), {
         status: response.status,
         headers: response.headers,
       });
     },
-  },
+  };
+}
 
-  // UserInfo endpoint — called with access_token to get profile
+function cognitoProfile(profile: CognitoUserInfo) {
+  return {
+    id: profile.sub,
+    name: profile.name ?? null,
+    email: profile.email ?? null,
+    image: profile.picture ?? null,
+  };
+}
+
+/**
+ * Provider A: Sign in with Google (skips Cognito hosted UI entirely).
+ * identity_provider=Google redirects straight to Google OAuth.
+ */
+const CognitoGoogleProvider: OAuthConfig<CognitoUserInfo> = {
+  id: "cognito",
+  name: "Google",
+  type: "oauth",
+  clientId: process.env.AUTH_COGNITO_ID!,
+  clientSecret: process.env.AUTH_COGNITO_SECRET!,
+  authorization: {
+    url: `${COGNITO_DOMAIN}/oauth2/authorize`,
+    params: { scope: "openid email profile", identity_provider: "Google" },
+  },
+  token: cognitoToken(`${COGNITO_DOMAIN}/oauth2/token`),
   userinfo: `${COGNITO_DOMAIN}/oauth2/userInfo`,
-
-  // PKCE + state protect against CSRF. No nonce needed (and it would break).
   checks: ["pkce", "state"],
+  profile: cognitoProfile,
+};
 
-  // Map Cognito userinfo fields to auth.js User shape
-  profile(profile: CognitoUserInfo) {
-    return {
-      id: profile.sub,
-      name: profile.name ?? null,
-      email: profile.email ?? null,
-      image: profile.picture ?? null,
-    };
+/**
+ * Provider B: Sign in with Cognito Hosted UI (email/password or any IdP).
+ * No identity_provider param — shows the full Cognito Hosted UI so the user
+ * can choose email+password, or any other federated provider configured.
+ */
+const CognitoEmailProvider: OAuthConfig<CognitoUserInfo> = {
+  id: "cognito-email",
+  name: "Cognito Email",
+  type: "oauth",
+  clientId: process.env.AUTH_COGNITO_ID!,
+  clientSecret: process.env.AUTH_COGNITO_SECRET!,
+  authorization: {
+    url: `${COGNITO_DOMAIN}/oauth2/authorize`,
+    params: { scope: "openid email profile" },
   },
+  token: cognitoToken(`${COGNITO_DOMAIN}/oauth2/token`),
+  userinfo: `${COGNITO_DOMAIN}/oauth2/userInfo`,
+  checks: ["pkce", "state"],
+  profile: cognitoProfile,
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // ─── Provider ───────────────────────────────────────────────────────────────
-  providers: [CognitoProvider],
+  providers: [CognitoGoogleProvider, CognitoEmailProvider],
 
   // ─── Session Strategy ────────────────────────────────────────────────────────
   // "jwt" = store session in a signed/encrypted cookie.

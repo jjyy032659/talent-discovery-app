@@ -1,103 +1,156 @@
 "use client";
 
 /**
- * src/components/auth/AuthButton.tsx — Sign In / Sign Out button
+ * src/components/auth/AuthButton.tsx — Sign In / Sign Out button + profile dropdown
  *
- * WHY "use client"?
- * - We use useSession() which is a React hook (client-side state)
- * - onClick handlers are client-side events
- * - The session state drives conditional rendering (signed-in vs out)
+ * SIGN-IN OPTIONS:
+ * - "Sign in with Google" → signIn("cognito") → identity_provider=Google → skips Cognito UI
+ * - "Sign in with Email"  → signIn("cognito-email") → Cognito Hosted UI (email/password)
  *
- * WHY useSession() instead of reading session in a Server Component?
- * - This button lives in the TopBar which is already "use client" for
- *   mobile nav state. Mixing server/client in one component is complex.
- * - useSession() is instant (reads from memory, no network request after
- *   initial SessionProvider hydration)
- *
- * SIGN-IN FLOW:
- * 1. User clicks "Sign In" → calls next-auth signIn("cognito")
- * 2. Browser redirects to Cognito Hosted UI (AWS-managed login page)
- * 3. User enters credentials → Cognito redirects back to /api/auth/callback/cognito
- * 4. next-auth exchanges code for tokens, creates JWT cookie
- * 5. Middleware sees valid cookie → allows dashboard access
+ * PROFILE DROPDOWN (when authenticated):
+ * - Click avatar → dropdown shows email, Switch Account, Sign Out
+ * - Switch Account = full sign-out (NextAuth + Cognito) so the next sign-in
+ *   prompts for a different account rather than reusing the Cognito session
+ * - Click outside → dropdown closes
  */
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { useState, useRef, useEffect } from "react";
 
-// Cognito logout endpoint — clears the Cognito session so the next
-// sign-in goes through the full Google flow (enabling account switching).
-// Without this, Cognito remembers the last user and skips Google entirely.
+// Cognito logout endpoint — clears the Cognito session cookie.
+// Without this, Cognito silently reuses the last authenticated user on next sign-in.
 const COGNITO_LOGOUT_URL =
   "https://talent-app-dev.auth.ap-southeast-2.amazoncognito.com/logout" +
   "?client_id=66nas9pa6o8dtph59o9m2dc71n" +
   "&logout_uri=https://talentdiscovery.xyz";
 
-async function handleSignOut() {
-  // 1. Clear the NextAuth JWT cookie
-  await signOut({ redirect: false });
-  // 2. Clear the Cognito session so next sign-in shows Google account picker
-  window.location.href = COGNITO_LOGOUT_URL;
+async function clearSession() {
+  await signOut({ redirect: false }); // clear NextAuth JWT cookie
+  window.location.href = COGNITO_LOGOUT_URL; // clear Cognito session
 }
 
 interface AuthButtonProps {
-  /** Optional: show user email next to button when signed in */
   showEmail?: boolean;
-  /** Optional: custom className for styling */
   className?: string;
 }
 
 export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
-  // useSession() returns:
-  // - status: "loading" | "authenticated" | "unauthenticated"
-  // - data: Session object (or null if unauthenticated)
   const { data: session, status } = useSession();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
 
   if (status === "loading") {
-    // Show spinner while session is being hydrated from cookie
     return <LoadingSpinner size="sm" />;
   }
 
   if (status === "authenticated" && session) {
+    const initial = session.user?.email?.[0]?.toUpperCase() ?? "U";
+    const email = session.user?.email ?? "";
+
     return (
       <div className={`flex items-center gap-3 ${className ?? ""}`}>
-        {showEmail && session.user?.email && (
+        {showEmail && email && (
           <span
             className="text-sm hidden sm:block"
             style={{ color: "var(--muted-foreground)" }}
           >
-            {session.user.email}
+            {email}
           </span>
         )}
-        {/* Avatar — shows signed-in email on hover */}
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-          style={{ background: "var(--primary)", color: "white" }}
-          title={`Signed in as ${session.user?.email ?? ""}`}
-        >
-          {session.user?.email?.[0]?.toUpperCase() ?? "U"}
+
+        {/* Clickable avatar with dropdown */}
+        <div className="relative" ref={ref}>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2"
+            style={{
+              background: "var(--primary)",
+              color: "white",
+              // @ts-expect-error CSS custom property
+              "--tw-ring-color": "var(--primary)",
+            }}
+            title={`Signed in as ${email}`}
+            aria-label="Account menu"
+            aria-expanded={open}
+          >
+            {initial}
+          </button>
+
+          {open && (
+            <div
+              className="absolute right-0 mt-2 w-52 rounded-lg shadow-lg border z-50 overflow-hidden"
+              style={{
+                background: "var(--card)",
+                borderColor: "var(--border)",
+              }}
+            >
+              {/* Current account */}
+              <div
+                className="px-3 py-2.5 border-b"
+                style={{ borderColor: "var(--border)" }}
+              >
+                <p
+                  className="text-xs mb-0.5"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Signed in as
+                </p>
+                <p className="text-sm font-medium truncate">{email}</p>
+              </div>
+
+              {/* Switch Account */}
+              <button
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
+                style={{ color: "var(--foreground)" }}
+                onClick={() => { setOpen(false); void clearSession(); }}
+              >
+                Switch Account
+              </button>
+
+              {/* Sign Out */}
+              <button
+                className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
+                style={{ color: "var(--foreground)" }}
+                onClick={() => { setOpen(false); void clearSession(); }}
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSignOut}
-        >
-          Sign Out
-        </Button>
       </div>
     );
   }
 
-  // Not authenticated: show Sign In button
+  // Unauthenticated — show two sign-in options
   return (
-    <Button
-      size="sm"
-      onClick={() => signIn("cognito", { redirectTo: "/dashboard" })}
-      // redirectTo: go straight to dashboard after auth completes
-      className={className}
-    >
-      Sign In
-    </Button>
+    <div className={`flex items-center gap-2 ${className ?? ""}`}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => signIn("cognito-email", { redirectTo: "/dashboard" })}
+      >
+        Sign in with Email
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => signIn("cognito", { redirectTo: "/dashboard" })}
+      >
+        Sign in with Google
+      </Button>
+    </div>
   );
 }

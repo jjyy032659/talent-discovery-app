@@ -95,8 +95,11 @@ module "cognito" {
 
   callback_urls = compact([
     "http://localhost:3000/api/auth/callback/cognito",
+    "http://localhost:3000/api/auth/callback/cognito-email",
     var.domain_name != "" ? "https://${var.domain_name}/api/auth/callback/cognito" : "",
+    var.domain_name != "" ? "https://${var.domain_name}/api/auth/callback/cognito-email" : "",
     var.domain_name != "" ? "https://www.${var.domain_name}/api/auth/callback/cognito" : "",
+    var.domain_name != "" ? "https://www.${var.domain_name}/api/auth/callback/cognito-email" : "",
   ])
 
   logout_urls = compact([
