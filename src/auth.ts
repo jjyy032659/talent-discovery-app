@@ -41,6 +41,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Skip Cognito hosted UI, go straight to Google every time.
       // Without this, users see an intermediate Cognito login page.
       authorization: { params: { identity_provider: "Google" } },
+      // WHY skip nonce check?
+      // When using Cognito federated sign-in (identity_provider=Google), Cognito
+      // generates its own ID token and does NOT echo back the nonce that NextAuth
+      // sent in the original auth request. NextAuth's nonce validation then fails
+      // with "unexpected ID Token nonce claim value", causing the callback to error
+      // and redirect the user back to the landing page (appearing unauthenticated).
+      // PKCE + state still provide CSRF protection — nonce is redundant here.
+      checks: ["pkce", "state"],
     }),
   ],
 
