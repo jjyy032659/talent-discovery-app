@@ -7,50 +7,101 @@
  * - Session available in both Server Actions and API Routes via auth()
  * - Edge-compatible middleware support out of the box
  *
- * WHY COGNITO AS OIDC PROVIDER?
- * - AWS-managed: no servers to run, auto-scales, handles MFA
- * - Free tier: 50,000 MAU (Monthly Active Users) — $0 for a resume project
- * - Fully OIDC-compliant: next-auth talks to it exactly like Google/GitHub
- * - Integrates natively with IAM for future AWS service access
+ * WHY CUSTOM OAUTH PROVIDER (not built-in Cognito OIDC)?
+ * - The built-in Cognito provider uses type: "oidc", which validates the
+ *   ID token's nonce claim on every sign-in.
+ * - When Cognito federates to Google (identity_provider=Google), it generates
+ *   its own nonce for the Cognito-Google exchange and puts THAT nonce in the
+ *   Cognito ID token — NOT the nonce auth.js originally sent.
+ * - auth.js v5 normalizes all OIDC providers to always include nonce in checks,
+ *   so setting checks: ["pkce", "state"] is ignored.
+ * - Result: every first sign-in throws CallbackRouteError "unexpected ID Token
+ *   nonce claim value", silently redirects user back to landing page.
+ * - FIX: use type: "oauth" (pure OAuth 2.0, no ID token). auth.js calls the
+ *   userinfo endpoint for profile data instead — no ID token, no nonce check.
  *
  * FLOW:
- * 1. User clicks "Sign In" → next-auth redirects to Cognito Hosted UI
- * 2. User signs in/up on Cognito's page → Cognito redirects back with code
- * 3. next-auth exchanges code for tokens (access_token + id_token)
- * 4. We extract user ID (sub) and email from id_token
- * 5. Session is stored in a signed cookie (JWT strategy, no DB needed for sessions)
+ * 1. User clicks "Sign In" → auth.js redirects to Cognito Hosted UI with identity_provider=Google
+ * 2. Cognito redirects straight to Google (no intermediate Cognito page)
+ * 3. User authenticates with Google → Google redirects back to Cognito
+ * 4. Cognito redirects to /api/auth/callback/cognito with an auth code
+ * 5. auth.js exchanges the code for access_token at Cognito's token endpoint
+ * 6. auth.js calls Cognito's userinfo endpoint with the access_token
+ * 7. Session is stored in a signed cookie (JWT strategy, no DB needed)
  */
 
 import NextAuth from "next-auth";
-import Cognito from "next-auth/providers/cognito";
+import type { OAuthConfig } from "next-auth/providers";
+
+// Cognito Hosted UI base URL — used for OAuth endpoints and sign-out.
+// Pattern: https://<domain-prefix>.auth.<region>.amazoncognito.com
+// This is configured in Terraform: aws_cognito_user_pool_domain.main
+const COGNITO_DOMAIN =
+  "https://talent-app-dev.auth.ap-southeast-2.amazoncognito.com";
+
+// Profile shape returned by Cognito's /oauth2/userInfo endpoint
+interface CognitoUserInfo {
+  sub: string;
+  email: string;
+  email_verified?: boolean;
+  name?: string;
+  picture?: string;
+}
+
+/**
+ * Custom OAuth 2.0 provider for Cognito.
+ *
+ * WHY NOT type: "oidc"?
+ * See module comment above. Short version: Cognito's nonce handling for
+ * federated sign-in is incompatible with auth.js's strict OIDC nonce check.
+ *
+ * Using type: "oauth" means auth.js:
+ * - Does NOT request or validate an ID token
+ * - Uses the access_token to call /oauth2/userInfo for profile data
+ * - Only applies PKCE + state checks (no nonce) → no mismatch possible
+ */
+const CognitoProvider: OAuthConfig<CognitoUserInfo> = {
+  id: "cognito",
+  name: "Cognito",
+  type: "oauth",
+
+  clientId: process.env.AUTH_COGNITO_ID!,
+  clientSecret: process.env.AUTH_COGNITO_SECRET!,
+
+  // Authorization endpoint — Cognito Hosted UI
+  // identity_provider=Google skips the Cognito login page and goes
+  // straight to Google OAuth. Without this, users see a Cognito page first.
+  authorization: {
+    url: `${COGNITO_DOMAIN}/oauth2/authorize`,
+    params: {
+      scope: "openid email profile",
+      identity_provider: "Google",
+    },
+  },
+
+  // Token endpoint — exchange auth code for access_token
+  token: `${COGNITO_DOMAIN}/oauth2/token`,
+
+  // UserInfo endpoint — called with access_token to get profile
+  userinfo: `${COGNITO_DOMAIN}/oauth2/userInfo`,
+
+  // PKCE + state protect against CSRF. No nonce needed (and it would break).
+  checks: ["pkce", "state"],
+
+  // Map Cognito userinfo fields to auth.js User shape
+  profile(profile: CognitoUserInfo) {
+    return {
+      id: profile.sub,
+      name: profile.name ?? null,
+      email: profile.email ?? null,
+      image: profile.picture ?? null,
+    };
+  },
+};
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // ─── Provider ───────────────────────────────────────────────────────────────
-  providers: [
-    Cognito({
-      // These come from environment variables set in .env.local (dev)
-      // or SSM Parameter Store → docker run --env (production).
-      // AUTH_COGNITO_ID: the App Client ID from your User Pool
-      clientId: process.env.AUTH_COGNITO_ID!,
-      // AUTH_COGNITO_SECRET: the App Client Secret (sensitive! never commit)
-      clientSecret: process.env.AUTH_COGNITO_SECRET!,
-      // AUTH_COGNITO_ISSUER: https://cognito-idp.<region>.amazonaws.com/<pool-id>
-      // next-auth fetches /.well-known/openid-configuration from this URL to
-      // discover all endpoints automatically (OIDC discovery)
-      issuer: process.env.AUTH_COGNITO_ISSUER!,
-      // Skip Cognito hosted UI, go straight to Google every time.
-      // Without this, users see an intermediate Cognito login page.
-      authorization: { params: { identity_provider: "Google" } },
-      // WHY skip nonce check?
-      // When using Cognito federated sign-in (identity_provider=Google), Cognito
-      // generates its own ID token and does NOT echo back the nonce that NextAuth
-      // sent in the original auth request. NextAuth's nonce validation then fails
-      // with "unexpected ID Token nonce claim value", causing the callback to error
-      // and redirect the user back to the landing page (appearing unauthenticated).
-      // PKCE + state still provide CSRF protection — nonce is redundant here.
-      checks: ["pkce", "state"],
-    }),
-  ],
+  providers: [CognitoProvider],
 
   // ─── Session Strategy ────────────────────────────────────────────────────────
   // "jwt" = store session in a signed/encrypted cookie.
@@ -70,13 +121,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * jwt() runs when a token is created (sign-in) or accessed (any request).
      * We copy the Cognito 'sub' (stable user identifier) into the token so it
      * survives across requests. The 'sub' is the DynamoDB partition key.
+     *
+     * NOTE: with type: "oauth", profile comes from the userinfo endpoint
+     * (not from an ID token). The shape matches CognitoUserInfo above.
      */
     async jwt({ token, account, profile }) {
       if (account && profile) {
         // 'sub' = Cognito's unique user ID (UUID). Stable — never changes.
         // Use this as the DynamoDB PK (not email, which can change)
-        token.sub = profile.sub as string;
-        token.email = profile.email as string;
+        token.sub = (profile as CognitoUserInfo).sub;
+        token.email = (profile as CognitoUserInfo).email;
       }
       return token;
     },
