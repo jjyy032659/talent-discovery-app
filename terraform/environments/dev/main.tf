@@ -93,18 +93,20 @@ module "cognito" {
   app_name    = var.app_name
   environment = var.environment
 
-  # Include both local dev and production URLs
-  # STEP 2: Add your EC2 Elastic IP URL here after first apply
   callback_urls = compact([
     "http://localhost:3000/api/auth/callback/cognito",
-    # HTTPS required for non-localhost. Add after setting up SSL:
-    # var.ec2_public_ip != "" ? "https://${var.ec2_public_ip}/api/auth/callback/cognito" : "",
+    var.domain_name != "" ? "https://${var.domain_name}/api/auth/callback/cognito" : "",
+    var.domain_name != "" ? "https://www.${var.domain_name}/api/auth/callback/cognito" : "",
   ])
 
   logout_urls = compact([
     "http://localhost:3000",
-    # var.ec2_public_ip != "" ? "https://${var.ec2_public_ip}" : "",
+    var.domain_name != "" ? "https://${var.domain_name}" : "",
+    var.domain_name != "" ? "https://www.${var.domain_name}" : "",
   ])
+
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
 }
 
 # ===== MODULE: IAM =====

@@ -86,6 +86,39 @@ resource "aws_cognito_user_pool" "main" {
   }
 }
 
+# ----- GOOGLE IDENTITY PROVIDER -----
+# Federates Google sign-in through Cognito.
+# Flow: user clicks "Sign in with Google" → Cognito → Google OAuth → back to Cognito → app
+# This keeps ALL users (email/password + Google) in one Cognito User Pool.
+resource "aws_cognito_identity_provider" "google" {
+  count        = var.google_client_id != "" ? 1 : 0
+  user_pool_id = aws_cognito_user_pool.main.id
+  provider_name = "Google"
+  provider_type = "Google"
+
+  provider_details = {
+    client_id                     = var.google_client_id
+    client_secret                 = var.google_client_secret
+    authorize_scopes              = "email profile openid"
+    # Cognito fetches Google's OIDC discovery document automatically
+    oidc_issuer                   = "https://accounts.google.com"
+    token_url                     = "https://oauth2.googleapis.com/token"
+    token_request_method          = "POST"
+    authorize_url                 = "https://accounts.google.com/o/oauth2/v2/auth"
+    attributes_url                = "https://people.googleapis.com/v1/people/me?personFields="
+    attributes_url_add_attributes = "true"
+  }
+
+  # Map Google's user attributes to Cognito standard attributes
+  attribute_mapping = {
+    email          = "email"
+    email_verified = "email_verified"
+    name           = "name"
+    username       = "sub"  # Google's 'sub' → Cognito username
+    picture        = "picture"
+  }
+}
+
 # ----- USER POOL CLIENT -----
 # This is the OAuth2 "application" config.
 # Each client gets its own client_id and optionally client_secret.
@@ -124,9 +157,9 @@ resource "aws_cognito_user_pool_client" "app" {
   logout_urls   = var.logout_urls
 
   # Which identity providers are supported
-  # COGNITO = native Cognito login (email/password)
-  # Add "Google", "Facebook", etc. to enable social login later
-  supported_identity_providers = ["COGNITO"]
+  supported_identity_providers = var.google_client_id != "" ? ["COGNITO", "Google"] : ["COGNITO"]
+
+  depends_on = [aws_cognito_identity_provider.google]
 
   # Prevent user existence errors — don't tell attackers if email exists
   prevent_user_existence_errors = "ENABLED"

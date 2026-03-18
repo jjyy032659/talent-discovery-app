@@ -38,3 +38,16 @@ variable "domain_name" {
   type        = string
   default     = ""
 }
+
+variable "google_client_id" {
+  description = "Google OAuth client ID for Cognito federation"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret for Cognito federation"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
