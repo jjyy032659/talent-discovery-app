@@ -94,3 +94,9 @@ variable "ec2_public_ip" {
   type        = string
   default     = ""
 }
+
+variable "domain_name" {
+  description = "Primary domain name for the app (used for nginx and AUTH_URL)"
+  type        = string
+  default     = ""
+}

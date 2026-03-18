@@ -32,3 +32,9 @@ variable "ec2_public_ip" {
   type    = string
   default = ""
 }
+
+variable "domain_name" {
+  description = "Primary domain name for the app (e.g. talentdiscovery.xyz)"
+  type        = string
+  default     = ""
+}

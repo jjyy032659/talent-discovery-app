@@ -144,6 +144,7 @@ module "ec2" {
   cognito_client_id    = module.cognito.client_id
   cognito_user_pool_id = module.cognito.user_pool_id
   ec2_public_ip        = var.ec2_public_ip
+  domain_name          = var.domain_name
 
   depends_on = [module.vpc, module.iam, module.ecr, module.cognito]
 }

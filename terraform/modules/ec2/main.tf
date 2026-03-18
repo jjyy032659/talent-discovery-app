@@ -65,6 +65,7 @@ resource "aws_instance" "app" {
     app_name             = var.app_name
     environment          = var.environment
     ec2_public_ip        = var.ec2_public_ip
+    domain_name          = var.domain_name
   })
 
   # Protect against accidental termination via Terraform.

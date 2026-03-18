@@ -47,7 +47,7 @@ systemctl enable nginx
 cat > /etc/nginx/conf.d/talent-app.conf << 'NGINX_EOF'
 server {
     listen 80;
-    server_name _;  # Accept any hostname (use domain name in production)
+    server_name ${domain_name} www.${domain_name};
 
     # Increase for large request bodies (Next.js SSR pages)
     client_max_body_size 10M;
@@ -150,7 +150,7 @@ if docker image inspect ${ecr_registry_url}/${ecr_repo_name}:latest >/dev/null 2
     -e NODE_ENV="production" \
     -e PORT="3000" \
     -e AUTH_TRUST_HOST="true" \
-    -e AUTH_URL="http://${ec2_public_ip}" \
+    -e AUTH_URL="https://${domain_name}" \
     ${ecr_registry_url}/${ecr_repo_name}:latest
 fi
 
@@ -207,7 +207,7 @@ docker run -d \
   -e NODE_ENV="production" \
   -e PORT="3000" \
   -e AUTH_TRUST_HOST="true" \
-  -e AUTH_URL="http://${ec2_public_ip}" \
+  -e AUTH_URL="https://${domain_name}" \
   "$IMAGE"
 
 echo "==> [deploy] Cleaning up old images..."
