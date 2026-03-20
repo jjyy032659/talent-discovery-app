@@ -42,10 +42,9 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Authenticated users hitting the landing page → send to dashboard
-  if (req.nextUrl.pathname === "/" && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
-  }
+  // Landing page is intentionally open to everyone — it has a live demo
+  // that unauthenticated visitors (e.g. resume reviewers) should be able to try.
+  // Authenticated users can still navigate to /dashboard via the nav.
 
   return NextResponse.next();
 });

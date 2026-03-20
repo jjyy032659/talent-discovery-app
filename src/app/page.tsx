@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, Brain, ThumbsDown, Map, Radar, ArrowRight, Star } from "lucide-react";
 import { AuthButton } from "@/components/auth/AuthButton";
+import { DemoIkigaiChat } from "@/components/demo/DemoIkigaiChat";
 
 const features = [
   {
@@ -96,6 +97,21 @@ export default function HomePage() {
             View Talent Map
           </Link>
         </div>
+      </section>
+
+      {/* Live Demo */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-full px-4 py-1.5 text-sm text-[var(--accent)] mb-4">
+            <Sparkles className="w-3.5 h-3.5" />
+            No sign-in required
+          </div>
+          <h2 className="text-3xl font-bold text-[var(--foreground)] mb-2">Try it live</h2>
+          <p className="text-[var(--muted-foreground)] max-w-xl mx-auto">
+            Have a real conversation with AI. See your Ikigai, MBTI type, Big Five, and Holland Codes generated in real time.
+          </p>
+        </div>
+        <DemoIkigaiChat />
       </section>
 
       {/* Features Grid */}
