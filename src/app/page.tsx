@@ -3,6 +3,7 @@ import { AuthButton } from "@/components/auth/AuthButton";
 import { DemoIkigaiChat } from "@/components/demo/DemoIkigaiChat";
 import { HeroCTAButtons } from "@/components/demo/HeroCTAButtons";
 import { FeatureGrid } from "@/components/demo/FeatureCard";
+import { FeatureShowcase } from "@/components/demo/FeatureShowcase";
 
 export default function HomePage() {
   return (
@@ -59,11 +60,22 @@ export default function HomePage() {
         <DemoIkigaiChat />
       </section>
 
-      {/* Features Grid */}
-      <section className="max-w-6xl mx-auto px-6 pb-20">
+      {/* Quick feature overview */}
+      <section className="max-w-6xl mx-auto px-6 pb-12">
         <h2 className="text-2xl font-bold text-center text-[var(--foreground)] mb-2">Five Powerful Assessments</h2>
         <p className="text-center text-[var(--muted-foreground)] mb-10">Each tool adds more depth to your talent profile</p>
         <FeatureGrid />
+      </section>
+
+      {/* Detailed feature showcase with live previews */}
+      <section className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl font-bold text-[var(--foreground)] mb-3">See exactly what you get</h2>
+          <p className="text-[var(--muted-foreground)] max-w-xl mx-auto">
+            Every assessment generates real outputs. Here is what your profile looks like after completing each one.
+          </p>
+        </div>
+        <FeatureShowcase />
       </section>
     </div>
   );
