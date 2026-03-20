@@ -1,7 +1,8 @@
-import Link from "next/link";
-import { Sparkles, Brain, ThumbsDown, Map, Radar, ArrowRight, Star } from "lucide-react";
+import { Sparkles, Brain, ThumbsDown, Map, Radar, Star } from "lucide-react";
 import { AuthButton } from "@/components/auth/AuthButton";
 import { DemoIkigaiChat } from "@/components/demo/DemoIkigaiChat";
+import { HeroCTAButtons } from "@/components/demo/HeroCTAButtons";
+import { FeatureCard } from "@/components/demo/FeatureCard";
 
 const features = [
   {
@@ -83,20 +84,7 @@ export default function HomePage() {
           An AI-powered platform that uses advanced psychology frameworks to uncover your unique strengths,
           map your Ikigai, and build your personalized growth roadmap.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/dashboard"
-            className="flex items-center justify-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white px-8 py-3 rounded-xl font-semibold text-base transition-all hover:shadow-lg hover:shadow-[var(--primary)]/25"
-          >
-            Begin Your Journey <ArrowRight className="w-5 h-5" />
-          </Link>
-          <Link
-            href="/talent-map"
-            className="flex items-center justify-center gap-2 border border-[var(--border)] hover:bg-[var(--muted)] text-[var(--foreground)] px-8 py-3 rounded-xl font-semibold text-base transition-colors"
-          >
-            View Talent Map
-          </Link>
-        </div>
+        <HeroCTAButtons />
       </section>
 
       {/* Live Demo */}
@@ -120,24 +108,7 @@ export default function HomePage() {
         <p className="text-center text-[var(--muted-foreground)] mb-10">Each tool adds more depth to your talent profile</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((feature) => (
-            <Link key={feature.href} href={feature.href}>
-              <div
-                className={`group p-6 rounded-2xl border border-[var(--border)] bg-gradient-to-br ${feature.gradient} hover:border-opacity-60 transition-all duration-300 hover:-translate-y-1 cursor-pointer h-full`}
-                style={{ "--hover-border": feature.color } as React.CSSProperties}
-              >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: `${feature.color}20`, border: `1px solid ${feature.color}30` }}
-                >
-                  <feature.icon className="w-6 h-6" style={{ color: feature.color }} />
-                </div>
-                <h3 className="font-semibold text-[var(--foreground)] mb-2">{feature.title}</h3>
-                <p className="text-sm text-[var(--muted-foreground)] leading-relaxed">{feature.description}</p>
-                <div className="flex items-center gap-1 mt-4 text-xs font-medium" style={{ color: feature.color }}>
-                  Get started <ArrowRight className="w-3 h-3" />
-                </div>
-              </div>
-            </Link>
+            <FeatureCard key={feature.href} {...feature} />
           ))}
         </div>
       </section>
