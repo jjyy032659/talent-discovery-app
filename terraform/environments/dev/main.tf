@@ -1,39 +1,17 @@
-# ============================================================
-# Dev Environment - Root Module
-#
-# This is the ENTRY POINT for Terraform.
-# It calls all feature modules and wires their inputs/outputs together.
-#
-# DEPLOY ORDER (Terraform figures this out automatically via dependencies):
-# 1. ECR (no dependencies)
-# 2. VPC (no dependencies)
-# 3. DynamoDB (no dependencies)
-# 4. Cognito (no dependencies)
-# 5. IAM (needs ECR ARN, DynamoDB ARN)
-# 6. EC2 (needs VPC, IAM, ECR URL, Cognito IDs, DynamoDB name)
-#
-# BACKEND NOTE:
-# The S3 backend stores terraform.tfstate remotely.
-# This is critical for teams — everyone shares the same state.
-# Run scripts/bootstrap.sh FIRST to create the S3 bucket and lock table!
-# ============================================================
+# Root module for the dev environment.
+# Wires all feature modules together and manages remote state.
 
 terraform {
   required_version = ">= 1.9.0"
 
-  # Remote state in S3 — never lose your infrastructure state!
-  # terraform.tfstate tracks all resources Terraform manages.
-  # Locally: works fine alone, but if lost → can't manage resources
-  # S3: survives laptop crashes, shared across team, versioned
+  # State stored in S3 so it survives local machine issues and can be shared.
+  # Run scripts/bootstrap.sh first to create the bucket and lock table.
   backend "s3" {
     bucket         = "talent-app-terraform-state-486804363192"
     key            = "dev/terraform.tfstate"
     region         = "ap-southeast-2"
-
-    # DynamoDB table for state locking
-    # Prevents two people from running apply simultaneously (race condition → corruption)
     dynamodb_table = "talent-app-terraform-locks"
-    encrypt        = true  # Encrypt state file (contains sensitive outputs!)
+    encrypt        = true
   }
 
   required_providers {
@@ -47,7 +25,6 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
-  # Default tags applied to ALL resources — great for cost tracking!
   default_tags {
     tags = {
       Project     = var.app_name
@@ -58,11 +35,8 @@ provider "aws" {
   }
 }
 
-# Current AWS account info (needed for IAM ARNs)
 data "aws_caller_identity" "current" {}
 
-# ===== MODULE: ECR =====
-# Create FIRST — IAM module needs the ECR ARN
 module "ecr" {
   source = "../../modules/ecr"
 
@@ -70,7 +44,6 @@ module "ecr" {
   environment = var.environment
 }
 
-# ===== MODULE: VPC =====
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -78,7 +51,6 @@ module "vpc" {
   environment = var.environment
 }
 
-# ===== MODULE: DYNAMODB =====
 module "dynamodb" {
   source = "../../modules/dynamodb"
 
@@ -86,7 +58,6 @@ module "dynamodb" {
   environment = var.environment
 }
 
-# ===== MODULE: COGNITO =====
 module "cognito" {
   source = "../../modules/cognito"
 
@@ -112,7 +83,6 @@ module "cognito" {
   google_client_secret = var.google_client_secret
 }
 
-# ===== MODULE: IAM =====
 module "iam" {
   source = "../../modules/iam"
 
@@ -125,7 +95,6 @@ module "iam" {
   github_repo        = "jjyy032659/talent-discovery-app"
 }
 
-# ===== MODULE: EC2 =====
 module "ec2" {
   source = "../../modules/ec2"
 
@@ -133,19 +102,15 @@ module "ec2" {
   environment = var.environment
   aws_region  = var.aws_region
 
-  # Networking (from VPC module)
   vpc_id            = module.vpc.vpc_id
-  subnet_id         = module.vpc.public_subnet_ids[0]  # First public subnet
+  subnet_id         = module.vpc.public_subnet_ids[0]
   security_group_id = module.vpc.ec2_security_group_id
 
-  # IAM (from IAM module)
   iam_instance_profile = module.iam.ec2_instance_profile_name
 
-  # Container registry (from ECR module)
-  ecr_registry_url = split("/", module.ecr.repository_url)[0]  # Just the registry hostname
+  ecr_registry_url = split("/", module.ecr.repository_url)[0]
   ecr_repo_name    = module.ecr.repository_name
 
-  # App configuration
   dynamodb_table_name  = module.dynamodb.table_name
   cognito_client_id    = module.cognito.client_id
   cognito_user_pool_id = module.cognito.user_pool_id
@@ -155,13 +120,12 @@ module "ec2" {
   depends_on = [module.vpc, module.iam, module.ecr, module.cognito]
 }
 
-# ===== SSM PARAMETERS =====
-# Store Cognito client secret in SSM (EC2 needs it at startup)
-# The secret itself comes from the Cognito module output
+# Cognito client secret is managed by Terraform and stored in SSM so the
+# EC2 startup script can read it without it appearing in source control.
 resource "aws_ssm_parameter" "cognito_client_secret" {
   name        = "/${var.app_name}/${var.environment}/cognito-client-secret"
   description = "Cognito User Pool Client Secret for next-auth"
-  type        = "SecureString"  # Encrypted with KMS
+  type        = "SecureString"
   value       = module.cognito.client_secret
 
   tags = {
@@ -170,17 +134,17 @@ resource "aws_ssm_parameter" "cognito_client_secret" {
   }
 }
 
-# Placeholder parameters — fill in manually via AWS Console or CLI
+# Placeholder parameters — set the real values after first apply:
 # aws ssm put-parameter --name "/talent-app/dev/gemini-api-key" \
-#   --value "your-key" --type SecureString
+#   --value "your-key" --type SecureString --overwrite
 resource "aws_ssm_parameter" "gemini_api_key" {
   name        = "/${var.app_name}/${var.environment}/gemini-api-key"
   description = "Google Gemini API key"
   type        = "SecureString"
-  value       = "REPLACE_ME"  # Update via: aws ssm put-parameter --overwrite ...
+  value       = "REPLACE_ME"
 
   lifecycle {
-    ignore_changes = [value]  # Don't overwrite manual updates with "REPLACE_ME"
+    ignore_changes = [value]
   }
 }
 
