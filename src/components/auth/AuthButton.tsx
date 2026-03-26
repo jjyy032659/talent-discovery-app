@@ -1,34 +1,21 @@
 "use client";
 
-/**
- * src/components/auth/AuthButton.tsx — Sign In / Sign Out button + profile dropdown
- *
- * SIGN-IN OPTIONS:
- * - "Sign in with Google" → signIn("cognito") → identity_provider=Google → skips Cognito UI
- * - "Sign in with Email"  → signIn("cognito-email") → Cognito Hosted UI (email/password)
- *
- * PROFILE DROPDOWN (when authenticated):
- * - Click avatar → dropdown shows email, Switch Account, Sign Out
- * - Switch Account = full sign-out (NextAuth + Cognito) so the next sign-in
- *   prompts for a different account rather than reusing the Cognito session
- * - Click outside → dropdown closes
- */
-
 import { useSession, signIn, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useState, useRef, useEffect } from "react";
 
-// Cognito logout endpoint — clears the Cognito session cookie.
-// Without this, Cognito silently reuses the last authenticated user on next sign-in.
+// Clears both the NextAuth JWT and the Cognito session cookie.
+// Without hitting the Cognito logout endpoint, the next sign-in silently
+// reuses the existing Cognito session instead of prompting for credentials.
 const COGNITO_LOGOUT_URL =
   "https://talent-app-dev.auth.ap-southeast-2.amazoncognito.com/logout" +
   "?client_id=66nas9pa6o8dtph59o9m2dc71n" +
   "&logout_uri=https://talentdiscovery.xyz";
 
 async function clearSession() {
-  await signOut({ redirect: false }); // clear NextAuth JWT cookie
-  window.location.href = COGNITO_LOGOUT_URL; // clear Cognito session
+  await signOut({ redirect: false });
+  window.location.href = COGNITO_LOGOUT_URL;
 }
 
 interface AuthButtonProps {
@@ -41,7 +28,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -71,7 +57,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
           </span>
         )}
 
-        {/* Clickable avatar with dropdown */}
         <div className="relative" ref={ref}>
           <button
             onClick={() => setOpen((v) => !v)}
@@ -97,7 +82,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
                 borderColor: "var(--border)",
               }}
             >
-              {/* Current account */}
               <div
                 className="px-3 py-2.5 border-b"
                 style={{ borderColor: "var(--border)" }}
@@ -111,7 +95,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
                 <p className="text-sm font-medium truncate">{email}</p>
               </div>
 
-              {/* Switch Account */}
               <button
                 className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
                 style={{ color: "var(--foreground)" }}
@@ -120,7 +103,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
                 Switch Account
               </button>
 
-              {/* Sign Out */}
               <button
                 className="w-full text-left px-3 py-2 text-sm transition-colors hover:opacity-80"
                 style={{ color: "var(--foreground)" }}
@@ -135,7 +117,6 @@ export function AuthButton({ showEmail = false, className }: AuthButtonProps) {
     );
   }
 
-  // Unauthenticated — show two sign-in options
   return (
     <div className={`flex items-center gap-2 ${className ?? ""}`}>
       <Button
