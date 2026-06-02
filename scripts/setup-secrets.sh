@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REGION="us-east-1"
+REGION="ap-southeast-2"
 APP="talent-app"
 ENV="dev"
 # SSM path prefix — must match what deploy.sh reads (dashes, no leading slash)
