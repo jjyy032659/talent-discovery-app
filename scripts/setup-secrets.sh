@@ -16,6 +16,8 @@ set -euo pipefail
 REGION="us-east-1"
 APP="talent-app"
 ENV="dev"
+# SSM path prefix — must match what deploy.sh reads (dashes, no leading slash)
+SSM_PREFIX="$APP-$ENV"
 
 echo "============================================================"
 echo "  Setting up SSM Parameter Store secrets"
@@ -28,7 +30,7 @@ echo "Enter your Gemini API key (from https://aistudio.google.com/apikey):"
 read -r -s GEMINI_KEY  # -s = silent (don't echo to terminal)
 
 aws ssm put-parameter \
-  --name "/$APP/$ENV/gemini-api-key" \
+  --name "$SSM_PREFIX-gemini-api-key" \
   --value "$GEMINI_KEY" \
   --type SecureString \
   --overwrite \
@@ -40,7 +42,7 @@ echo "  Gemini API key stored"
 NEXTAUTH_SECRET=$(openssl rand -base64 32)
 
 aws ssm put-parameter \
-  --name "/$APP/$ENV/nextauth-secret" \
+  --name "$SSM_PREFIX-nextauth-secret" \
   --value "$NEXTAUTH_SECRET" \
   --type SecureString \
   --overwrite \
